@@ -1,0 +1,1 @@
+ robot --variable MODEL:gpt-oss:20b-cloud  --listener AILogListener.py tests/
