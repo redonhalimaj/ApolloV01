@@ -1,1 +1,1 @@
- robot --variable MODEL:gpt-oss:20b-cloud  --listener AILogListener.py tests/git remote add origin https://github.com/redonhalimaj/ApolloV01.git
+ robot --variable MODEL:gpt-oss:20b-cloud  --listener AILogListener.py tests/

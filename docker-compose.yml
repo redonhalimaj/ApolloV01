@@ -1,0 +1,26 @@
+services:
+  selenium:
+    image: selenium/standalone-chromium:latest   # multi-arch (arm64 friendly)
+    shm_size: 2g
+    ports:
+      - "4444:4444"
+      - "7900:7900"
+
+  robot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on: [selenium]
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=gpt-oss:20b-cloud
+      - SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
+    volumes:
+      - ./:/work
+    working_dir: /work
+    command: >
+      robot
+      --listener AILogListener.py:tags=AI_ANALYZE,context_file=ai_context.json,max_chars=20000
+      --variable MODEL:gpt-oss:20b-cloud
+      --variable SELENIUM_REMOTE_URL:http://selenium:4444/wd/hub
+      tests/
