@@ -1,24 +1,44 @@
-# AIContext.py
 from robot.api.deco import library, keyword
 from robot.libraries.BuiltIn import BuiltIn
-import json, os, platform, shutil, subprocess, time, re
+import json
+import os
+import platform
+import shutil
+import subprocess
+import time
+import re
+
 
 @library(scope="SUITE")
 class AIContext:
-    def __init__(self, file: str = "ai_context.json"):
+    """
+    A Robot Framework library that captures runtime context and writes it to a JSON file.
+
+    The context includes platform information, Python and library versions,
+    Selenium capabilities, selected environment variables and any user‑provided
+    facts.  This context can be consumed by an AI model via the failure
+    listener to understand the environment in which tests ran.
+    """
+
+    def __init__(self, file: str = "ai_context.json") -> None:
         # default file in the working dir; override via Library args
         self.file = file
-        self.extra = {}
+        self.extra: dict[str, object] = {}
 
     @keyword("Add AI Fact")
-    def add_ai_fact(self, key: str, value):
+    def add_ai_fact(self, key: str, value) -> None:
         """Add arbitrary key/value you want the AI to see (e.g., vpn=off)."""
         self.extra[str(key)] = value
 
     @keyword("Write AI Context")
-    def write_ai_context(self):
+    def write_ai_context(self) -> str:
+        """
+        Gather context data and write it to the configured JSON file.
+
+        Returns the absolute path to the written file.
+        """
         sel_bits = self._selenium_bits()
-        ctx = {
+        ctx: dict[str, object] = {
             "timestamp": time.time(),
             "platform": {
                 "system": platform.system(),
@@ -50,20 +70,20 @@ class AIContext:
         return os.path.abspath(self.file)
 
     # -------- helpers --------
-    def _pip_version(self, pkg):
+    def _pip_version(self, pkg: str) -> str | None:
         try:
             import importlib.metadata as im
             return im.version(pkg)
         except Exception:
             return None
 
-    def _chromedriver_version_cli(self):
+    def _chromedriver_version_cli(self) -> str | None:
         exe = shutil.which("chromedriver")
         if not exe:
             return None
         try:
             out = subprocess.check_output([exe, "--version"], text=True, timeout=3)
-            # "ChromeDriver 140.0.7246.0 (..)"
+            # "ChromeDriver 140.0.7246.0 (...)"
             for token in out.split():
                 if token and token[0].isdigit():
                     return token
@@ -71,7 +91,7 @@ class AIContext:
         except Exception:
             return None
 
-    def _chrome_version(self):
+    def _chrome_version(self) -> str | None:
         # macOS app path (host runs). In containers, this will likely be None.
         mac_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
         candidates = [
@@ -94,7 +114,7 @@ class AIContext:
                 continue
         return None
 
-    def _selenium_bits(self):
+    def _selenium_bits(self) -> dict[str, object] | None:
         """
         Capture current URL/title and a slim subset of capabilities.
         Also derive versions_from_caps for chrome/chromedriver so we don't
@@ -126,7 +146,7 @@ class AIContext:
                 info["capabilities"] = {k: caps.get(k) for k in keep if k in caps}
 
                 # Extract versions directly from caps
-                ver = {}
+                ver: dict[str, str] = {}
                 ver["chrome"] = caps.get("browserVersion") or caps.get("version")
                 cdv = caps.get("chromedriverVersion")
                 if isinstance(cdv, str):
@@ -138,12 +158,12 @@ class AIContext:
             pass
         return info
 
-    def _selected_env(self, keys):
+    def _selected_env(self, keys: list[str]) -> dict[str, object]:
         """
         Collect a few env vars plus Docker/remote-specific facts so the listener
         can reason about where/how the test ran.
         """
-        out = {}
+        out: dict[str, object] = {}
         for k in keys:
             v = os.environ.get(k)
             if v is not None:

@@ -1,1 +1,43 @@
  robot --variable MODEL:gpt-oss:20b-cloud  --listener AILogListener.py tests/git remote add origin https://github.com/redonhalimaj/ApolloV01.git
+
+
+ robot \
+  --variable MODEL:"gpt-oss:20b-cloud" \
+  --listener AILogListener.py:tags=AI_ANALYZE,context_file=ai_context.json,max_chars=20000 --include ai\
+  tests/
+
+
+
+
+redonhalimaj@Mac ApolloV01 % robot \                                                      
+  --listener AILogListener.py:tags=AI_ANALYZE,history_file=ai_failure_history.json,history_limit=5,enable_ocr=True \
+ --include ai  tests/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

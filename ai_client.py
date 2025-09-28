@@ -1,25 +1,32 @@
-# ai_client.py
-import os, json, re, requests
+import os
+import json
+import re
+import requests
 from requests import HTTPError
+
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
 MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b-cloud")  # your model
 TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "120"))
 
-def _post_json(url, payload):
+
+def _post_json(url: str, payload: dict[str, object]):
     r = requests.post(url, json=payload, timeout=TIMEOUT)
     try:
         r.raise_for_status()
     except HTTPError as e:
         body = ""
-        try: body = f" | server said: {r.text[:500]}"
-        except Exception: pass
+        try:
+            body = f" | server said: {r.text[:500]}"
+        except Exception:
+            pass
         raise HTTPError(f"{e} (model={payload.get('model')}){body}") from e
     return r
 
-def _messages_to_prompt(messages):
+
+def _messages_to_prompt(messages: list[dict[str, object]]) -> str:
     sys = "\n".join(m["content"] for m in messages if m.get("role") == "system")
-    convo = []
+    convo: list[str] = []
     for m in messages:
         role = m.get("role")
         if role == "user":
@@ -29,7 +36,8 @@ def _messages_to_prompt(messages):
     convo.append("Assistant:")
     return (f"[System]\n{sys}\n\n" if sys else "") + "\n".join(convo)
 
-def _extract_from_harmony_message(message_obj):
+
+def _extract_from_harmony_message(message_obj: dict[str, object]) -> str:
     """
     Harmony format: message.content can be a list of blocks, e.g.
       [{"type":"output_text","text":"..."},
@@ -41,7 +49,7 @@ def _extract_from_harmony_message(message_obj):
         return content
     if isinstance(content, list):
         first_json = None
-        texts = []
+        texts: list[str] = []
         for part in content:
             if not isinstance(part, dict):
                 continue
@@ -61,9 +69,14 @@ def _extract_from_harmony_message(message_obj):
         if texts:
             return "".join(texts)
     # Some servers put text at top-level keys too
-    return message_obj.get("text") or message_obj.get("response") or ""
+    return (
+        message_obj.get("text")
+        or message_obj.get("response")
+        or ""
+    )
 
-def _extract_text_or_json(data):
+
+def _extract_text_or_json(data: dict[str, object]) -> str:
     """
     Normalize various Ollama response shapes to a single string that
     is either JSON or plain text.
@@ -72,20 +85,23 @@ def _extract_text_or_json(data):
         # Newer chat: {"message": {...}}
         if "message" in data and isinstance(data["message"], dict):
             out = _extract_from_harmony_message(data["message"])
-            if out: return out
+            if out:
+                return out
         # Older generate: {"response":"..."}
         if "response" in data:
             return data["response"]
         # Some servers: {"content":"..."} or {"message":{"content":"string"}}
         if "content" in data:
             c = data["content"]
-            if isinstance(c, str): return c
+            if isinstance(c, str):
+                return c
             if isinstance(c, list):  # Harmony-style list at top level
                 return _extract_from_harmony_message({"content": c})
     # Last resort: stringify
     return json.dumps(data)
 
-def _chat(messages, model=None, temperature=0.2, json_mode=False):
+
+def _chat(messages: list[dict[str, object]], model: str | None = None, temperature: float = 0.2, json_mode: bool = False) -> str:
     """
     Try /api/chat first. On 404/501, fallback to /api/generate.
     If json_mode=True, ask for JSON via options.format='json' (ignored by some models).
@@ -125,12 +141,14 @@ def _chat(messages, model=None, temperature=0.2, json_mode=False):
     r = _post_json(gen_url, gen_payload)
     return _extract_text_or_json(r.json())
 
+
 # ---------- JSON helpers ----------
 
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE | re.DOTALL)
 _FIRST_JSON = re.compile(r"(\{.*\}|\[.*\])", re.DOTALL)
 
-def _coerce_json(s: str):
+
+def _coerce_json(s: str | dict) -> dict | list | str:
     """
     1) strip ```json fences
     2) if it's already valid JSON -> parse
@@ -147,9 +165,10 @@ def _coerce_json(s: str):
             return json.loads(m.group(1))
         raise ValueError(f"Model did not return JSON.\nFirst 500 chars:\n{candidate[:500]}")
 
-def json_reply(system_prompt, user_prompt, model=None):
+
+def json_reply(system_prompt: str, user_prompt: str, model: str | None = None):
     """
-    Ask model for STRICT JSON. Harmony-aware extraction + fallbacks.
+    Ask model for STRICT JSON.  Harmony‑aware extraction + fallbacks.
     """
     messages = [
         {"role": "system", "content": f"{system_prompt}\nReturn ONLY valid JSON."},
