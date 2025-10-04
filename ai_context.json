@@ -1,5 +1,5 @@
 {
-  "timestamp": 1759097520.4436831,
+  "timestamp": 1759322039.333178,
   "platform": {
     "system": "Darwin",
     "release": "24.6.0",
@@ -24,7 +24,7 @@
       "acceptInsecureCerts": false,
       "pageLoadStrategy": "normal",
       "goog:chromeOptions": {
-        "debuggerAddress": "localhost:63143"
+        "debuggerAddress": "localhost:49678"
       }
     },
     "versions_from_caps": {
